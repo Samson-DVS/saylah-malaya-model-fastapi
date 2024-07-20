@@ -1,4 +1,11 @@
-from fastapi import FastAPI, HTTPException, Response
+# -*- coding: utf-8 -*-
+"""
+Last Updated: 20 July 2024
+
+@author: VSAMS
+"""
+
+from fastapi import FastAPI, HTTPException, Response, Header, Depends
 from pydantic import BaseModel
 import malaya_speech
 import io
@@ -7,7 +14,11 @@ import uvicorn
 import asyncio
 import nest_asyncio
 import numpy as np
+from dotenv import load_dotenv
+import os
 
+# Load environment variables from .env file
+load_dotenv(".env")
 app = FastAPI()
 
 class TextToSpeechRequest(BaseModel):
@@ -17,8 +28,16 @@ class TextToSpeechRequest(BaseModel):
 fs2 = malaya_speech.tts.fastspeech2(model='female-singlish')
 vocoder = malaya_speech.vocoder.melgan()
 
+# Get the authorization key from .env file
+AUTH_KEY = os.getenv("AUTHKEY")
+
+def verify_auth_header(authorization: str = Header(None)):
+    if authorization != AUTH_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return authorization
+
 @app.post("/text-to-speech")
-async def text_to_speech(request: TextToSpeechRequest):
+async def text_to_speech(request: TextToSpeechRequest, auth: str = Depends(verify_auth_header)):
     try:
         # Generate speech from text
         r_singlish = fs2.predict(request.text)
